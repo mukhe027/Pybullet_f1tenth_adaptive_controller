@@ -25,7 +25,7 @@ from torchDeepAdap.refLibrary import refSignal
 #Control and Simulation Parameters
 learningON = 1
 adaptive_cntrl_ON = 0
-pratik_cntrl_ON = 1
+pratik_cntrl_ON = 0
 total_iter = 250#100000
 start_state = np.reshape([0,0,0,0],(4,1))
 env = ackerman(start_state)
