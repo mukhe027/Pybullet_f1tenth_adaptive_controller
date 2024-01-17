@@ -24,9 +24,9 @@ from torchDeepAdap.refLibrary import refSignal
  ###########Applying Linear Adaptive Controller##############
 #Control and Simulation Parameters
 learningON = 1
-adaptive_cntrl_ON = 0
-pratik_cntrl_ON = 0
-total_iter = 250#100000
+adaptive_cntrl_ON = 1
+pratik_cntrl_ON = 1 
+total_iter = 25000#100000
 start_state = np.reshape([0,0,0,0],(4,1))
 env = ackerman(start_state)
 ref_env = refModel(start_state)
@@ -338,11 +338,12 @@ class BulletSim:
                 
 
                 ###########Applying Linear Adaptive Controller##############
-                if disturbance_on:
-                    disturbance = random.uniform(0,1)
-                trueWeights = np.array([0.05314, 0.016918, -0.06245, 0.01095])
+                trueWeights = np.array([0.5314, 0.16918, -0.6245, 0.1095])
                 delta = np.dot(trueWeights,env.state)
-                self.target_steering_angle = -steering_angle+(disturbance/10) +delta
+                if disturbance_on:
+                    disturbance = random.uniform(0,1)+ delta
+                
+                self.target_steering_angle = -steering_angle+(disturbance) 
 
                 pybullet.setJointMotorControl2(
                     bodyUniqueId=agent,
