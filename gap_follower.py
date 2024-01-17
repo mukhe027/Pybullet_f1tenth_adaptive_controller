@@ -80,7 +80,8 @@ class GapFollower:
         # help the car to avoid hitting corners
         averaged_max_gap = np.convolve(ranges[start_i:end_i], np.ones(self.BEST_POINT_CONV_SIZE),
                                        'same') / self.BEST_POINT_CONV_SIZE
-        return averaged_max_gap.argmax() + start_i
+        maxy_dist = max(averaged_max_gap)
+        return maxy_dist, averaged_max_gap.argmax() + start_i
 
     def get_angle(self, range_index, range_len):
         """ 
@@ -89,6 +90,14 @@ class GapFollower:
         lidar_angle = (range_index - (range_len / 2)) * self.radians_per_elem
         steering_angle = lidar_angle / 2
         return steering_angle
+    ###########Applying Linear Adaptive Controller##############
+    def get_waypoints(self):
+
+
+
+
+        return
+    ###########Applying Linear Adaptive Controller##############
 
     def process_lidar(self, ranges):
         """ 
@@ -109,16 +118,17 @@ class GapFollower:
         gap_start, gap_end = self.find_max_gap(proc_ranges)
 
         # Find the best point in the gap
-        best = self.find_best_point(gap_start, gap_end, proc_ranges)
+        max_dist,best = self.find_best_point(gap_start, gap_end, proc_ranges)
         
         # Publish Drive message
         steering_angle = self.get_angle(best, len(proc_ranges))
+        angle_dist =  2*steering_angle
         if abs(steering_angle) > self.STRAIGHTS_STEERING_ANGLE:
             speed = self.CORNERS_SPEED
         else:
             speed = self.STRAIGHTS_SPEED
-        print('Steering angle in degrees: {}'.format((steering_angle / (np.pi / 2)) * 90))
-        return speed, steering_angle
+        #print('Steering angle in degrees: {}'.format((steering_angle / (np.pi / 2)) * 90))
+        return speed, steering_angle, angle_dist, max_dist
 
 if __name__ == "__main__":
 	quit()
