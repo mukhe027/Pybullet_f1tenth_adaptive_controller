@@ -24,9 +24,12 @@ from torchDeepAdap.refLibrary import refSignal
  ###########Applying Linear Adaptive Controller##############
 #Control and Simulation Parameters
 learningON = 1
+#Controller ON states
+pratik_cntrl_ON = 1
 adaptive_cntrl_ON = 1
-pratik_cntrl_ON = 1 
-total_iter = 25000#100000
+
+
+total_iter = 20000#35000 berlin #25000 gbr #20000 montreal100000
 start_state = np.reshape([0,0,0,0],(4,1))
 env = ackerman(start_state)
 ref_env = refModel(start_state)
@@ -35,6 +38,7 @@ ref_cmd = refSignal(int(total_iter))
 initialize_state = np.reshape([0,0],(2,1))
 
 disturbance_on = 1
+
  ###########Applying Linear Adaptive Controller##############
 
 start_time = datetime.now().strftime("%Y-%m-%d%H-%M-%S")
@@ -82,7 +86,11 @@ class BulletSim:
         pybullet.resetSimulation()
 
         ground_tuple = pybullet.loadSDF(
-            os.path.join(os.path.dirname(__file__), "./tracks/circle_cw/circle_cw.sdf")
+            #os.path.join(os.path.dirname(__file__), "./tracks/circle_cw/circle_cw.sdf")#good track
+            os.path.join(os.path.dirname(__file__), "./tracks/montreal/montreal.sdf")#good track
+            #os.path.join(os.path.dirname(__file__), "./tracks/gbr/gbr.sdf")#good track
+            #os.path.join(os.path.dirname(__file__), "./tracks/berlin/berlin.sdf")#good track
+           
         )
 
         new_orientation = pybullet.getQuaternionFromEuler((-np.pi / 2, 0, 0))
@@ -151,8 +159,20 @@ class BulletSim:
             restitution=0.0,
         )
         ###########Applying Linear Adaptive Controller##############
+        context_state_ON = 0 #set lr= 0.01 and buffer_size=7000
+        # For  context_state_ON = 0 set lr = 0.001 and buffer_size=5000
+        mrac_gain = 0.000001
+        if pratik_cntrl_ON:
+            if adaptive_cntrl_ON:
+                if context_state_ON:
+                    vehicl = MRAC(5,1,mrac_gain)#state_dim = 4 original 0.00001
+                else:
+                    vehicl = MRAC(4,1,mrac_gain)#state_dim = 4 original 0.00001
+            else:
+                vehicl = MRAC(4,1,mrac_gain)#state_dim = 4 original 0.00001
+                context_state_ON = 0
 
-        vehicl = MRAC(4,1,0.0001)
+
         total_cntrl_prev = 0.0
         disturbance = 0.0
         #plt.axis([0, 10, 0, 1])
@@ -169,6 +189,8 @@ class BulletSim:
         e2_rec = [0.0]
         e1_dot_rec = [0.0]
         e2_dot_rec = [0.0]
+        delta_rec = [0.0]
+        lrnd_unct_rec = [0.0]
 
 
         if pratik_cntrl_ON:
@@ -187,6 +209,7 @@ class BulletSim:
 
             e1_prev = 0.0
             e2_prev =0.0
+            steering_angle_prev = 0.0
         
             #self.sim_num_ts = len(pos_sto_x)
             #ref_cmd = refSignal(int(self.sim_num_ts))
@@ -196,6 +219,8 @@ class BulletSim:
             e2_rec = [0.0]
             e1_dot_rec = [0.0]
             e2_dot_rec = [0.0]
+            delta_rec = [0.0]
+            lrnd_unct_rec = [0.0]
             ii=0
         ###########Applying Linear Adaptive Controller##############
           
@@ -283,10 +308,23 @@ class BulletSim:
                     #e1= (pos_sto_mag - pos_read_mag)
                     e1= np.sqrt(np.square(pos_sto_x[ii]-xA)+np.square(pos_sto_z[ii]-zA))
                     #e1= (pos_sto_x[ii] - xA)/np.sin(self.veh_2d_world_heading)
-                    e2 = (-orn_sto[ii]*(np.pi/180) +self.veh_2d_world_heading)#in radians
+            ###############check for spike in heading values ###############
+
+                   
+                    
+
+                    e2 = (-((orn_sto[ii])*(np.pi/180) ) +((self.veh_2d_world_heading)))#in radians
+                  
+            ###############check for spike in heading values ###############
                     #e2 = (orn_sto[ii] -self.veh_2d_world_heading*(180/np.pi))#in degrees
                     e1_dot = (e1- e1_prev)/(1/self.controller_freq)
                     e2_dot = (e2- e2_prev)/(1/self.controller_freq)
+
+                  
+
+
+                    #if e2_dot >0.1 or e2_dot <-0.1:
+                            #e2_dot =0.0
 
                     e1_prev = e1
                     e2_prev = e2
@@ -304,15 +342,28 @@ class BulletSim:
                                     ###############Control Function Calls###################
                                     ###############Control Function Calls###################
                     env.applyCntrl(total_cntrl_prev,adaptive_cntrl_ON,vehicl_state.astype('float'))
-
+                    if context_state_ON:
+                          #ci = angle_dist - orn_sto[ii]*(np.pi/180)
+                          ci = angle_dist - self.veh_2d_world_heading
+                    else :
+                          ci = 0.0
+                    
                     #total_cntrl, pred_cntrl = vehicl.total_Cntrl(vehicl_state.astype('float'), ref_env.state.astype('float'), ref_cmd.refsignal[ii],adaptive_cntrl_ON, total_cntrl_prev)
-                    total_cntrl, pred_cntrl = vehicl.total_Cntrl(env.state.astype('float'), ref_env.state.astype('float'), ref_cmd.refsignal[ii],adaptive_cntrl_ON, total_cntrl_prev)
+                    total_cntrl, pred_cntrl, lrnd_unct = vehicl.total_Cntrl(env.state.astype('float'), ref_env.state.astype('float'), ref_cmd.refsignal[ii],adaptive_cntrl_ON, total_cntrl_prev,context_state_ON,ci)
+                    
+                    
+                    
                     steering_angle =total_cntrl[0]
+                    '''delta_steering_angle = abs(steering_angle - steering_angle_prev)/(1/self.controller_freq)
+                    if delta_steering_angle >10:
+                      steering_angle = steering_angle_prev'''
                     print('Steering Angle: {}'.format(steering_angle))                  
                     
                     ref_env.stepRefModel(ref_cmd.refsignal[ii],pred_cntrl,adaptive_cntrl_ON)
 
                     total_cntrl_prev = total_cntrl
+
+                    steering_angle_prev = steering_angle
                                     ###############Control Function Calls###################
                                     ###############Control Function Calls###################
                                     ###############Control Function Calls###################
@@ -338,10 +389,17 @@ class BulletSim:
                 
 
                 ###########Applying Linear Adaptive Controller##############
-                trueWeights = np.array([0.5314, 0.16918, -0.6245, 0.1095])
+                #trueWeights = np.array([0.5314, 0.16918, -0.6245, 0.1095])
+                trueWeights = np.array([0.2314, 0.16918, -0.5245, 0.1095])#works for deep L1  montreal
+                #trueWeights = np.array([0.5314, 0.16918, -0.4245, 0.1095])#works for deep L1  gbr and berlin
+               
+                #trueWeights = np.array([0.0, 0.0, 0.0, 0.0])
                 delta = np.dot(trueWeights,env.state)
                 if disturbance_on:
-                    disturbance = random.uniform(0,1)+ delta
+                    disturbance = random.uniform(0,0.15) + delta#works for deep L1 montreal
+                    #disturbance = random.uniform(0,0.2) + delta#works for deep L1 gbr and berlin
+                    
+                    #disturbance = random.uniform(0,0.2) + delta #works for only l1 adap
                 
                 self.target_steering_angle = -steering_angle+(disturbance) 
 
@@ -373,6 +431,13 @@ class BulletSim:
                     e2_rec.append(e2)
                     e1_dot_rec.append(e1_dot)
                     e2_dot_rec.append(e2_dot)
+                    
+                    if disturbance_on:
+                        delta_rec.append(disturbance[0])
+                    if adaptive_cntrl_ON:
+                        lrnd_unct_rec.append(lrnd_unct[0][0])
+
+                
         #Trying to plot after code shuts down
         '''plt.figure(1)
         plt.plot(pos_rec, color='red', label='$x(t)$')
@@ -416,6 +481,12 @@ class BulletSim:
                 np.save(f, e2_rec)
             with open('/home/mukhe027/workspace/f1tenth_bullet/data_collection/e2_dot_rec.npy', 'wb') as f:
                 np.save(f, e2_dot_rec)
+            if disturbance_on:
+                with open('/home/mukhe027/workspace/f1tenth_bullet/data_collection/uncnt_rec.npy', 'wb') as f:
+                    np.save(f, delta_rec)
+            if adaptive_cntrl_ON:
+                with open('/home/mukhe027/workspace/f1tenth_bullet/data_collection/lrnd_uncnt_rec.npy', 'wb') as f:
+                    np.save(f, lrnd_unct_rec)
 
         return
      

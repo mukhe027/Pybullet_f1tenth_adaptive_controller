@@ -29,6 +29,11 @@ def main():
     with open('/home/mukhe027/workspace/f1tenth_bullet/read_data/read_plots/point_rec_z.npy', 'rb') as f:
         point_rec_z = np.load(f)
 
+    with open('/home/mukhe027/workspace/f1tenth_bullet/read_data/read_plots/uncnt_rec.npy', 'rb') as f:
+        uncnt_rec = np.load(f)
+    with open('/home/mukhe027/workspace/f1tenth_bullet/read_data/read_plots/lrnd_uncnt_rec.npy', 'rb') as f:
+        lrnd_uncnt_rec = np.load(f)
+
 
         #Read Lateral Dynamics control states
 
@@ -106,8 +111,8 @@ def main():
 
 
     ax4 = plt.subplot(514)
-    plt.plot(time_rec[0:len(orn_rec)],orn_rec, color='red', label='$\Theta$')
-    plt.plot(time_rec[0:len(orn_rec)],ref_orn_rec, color='black', label='$\Theta_{ref}$')
+    plt.plot(time_rec[0:len(orn_rec)],orn_rec*(np.pi/180), color='red', label='$\Theta$')
+    plt.plot(time_rec[0:len(orn_rec)],ref_orn_rec*(np.pi/180), color='black', label='$\Theta_{ref}$')
     #plt.plot(ref_pos_rec, color='black', linestyle='--', label='$x_{rm}(t)$')
     plt.grid(True)
     plt.xlabel('time (s)')
@@ -205,6 +210,21 @@ def main():
     plt.grid(True)
     plt.xlabel('Position $z$')
     plt.ylabel('Position  $x$')
+    #plt.title('Deep-MRAC with $\\nu_{ad}=W^{T}\phi^\sigma_{n}(x)$')
+    plt.legend()
+
+
+
+###########################################################################################################
+    plt.figure(5)
+    
+    
+    plt.plot(time_rec[0:len(uncnt_rec)],uncnt_rec, color='black', label='$\Delta(x)+ \overline{\Delta}(x)$')
+    plt.plot(time_rec[0:len(lrnd_uncnt_rec)],lrnd_uncnt_rec, color='red', label='$\hat{\Delta}(x)+ \hat{\overline{\Delta}}(x)$')
+    #plt.plot(ref_pos_rec, color='black', linestyle='--', label='$x_{rm}(t)$')
+    plt.grid(True)
+    plt.xlabel('time (s)')
+    plt.ylabel('Uncertainty $(radians/s)$')
     #plt.title('Deep-MRAC with $\\nu_{ad}=W^{T}\phi^\sigma_{n}(x)$')
     plt.legend()
 
